@@ -7,7 +7,7 @@ import os
 import shutil
 import math
 
-version = "1.6"
+version = "1.0.6"
 
 # undefined start point
 file_path = ""
