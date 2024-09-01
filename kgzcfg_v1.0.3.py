@@ -2,7 +2,7 @@ import csv
 import argparse
 import sys
 
-version = "1.3"
+version = "1.0.3"
 
 # undefined
 file_path = ""
