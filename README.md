@@ -39,12 +39,59 @@ To run the script with arguments:
 
     python kgzcfg.py -m GRP2601P -u 192.168.1.1 -s 192.168.1.100 -n 255.255.255.0 -g 192.168.1.1 -a 1000 -d 8.8.8.8 -i 2
 
+To display the version:
+
+```sh
+python kgzcfg.py -v
+```
+
+### Interactive Mode
+
+If no arguments are provided, the script will prompt the user to input the necessary values interactively.
+
+## Supported Models
+
+The script supports the following Grandstream IP phone models:
+
+- GHP610, GHP610W, GHP611, GHP611W, GHP620, GHP620W, GHP621, GHP621W, GHP630, GHP630W, GHP631, GHP631W, GRP2601, GRP2601P, GRP2601W, GRP2602, GRP2602G, GRP2602P, GRP2602W, GRP2603, GRP2603P, GRP2604, GRP2604P, GRP2612, GRP2612G, GRP2612P, GRP2612W, GRP2613, GRP2614, GRP2615, GRP2616, GRP2624, GRP2634, GRP2636, GRP2650, GRP2670, GSC3505, GSC3506, GSC3510, GSC3516, GSC3570, GSC3574, GSC3575, GSC3610, GSC3615, GSC3620, GXP1100, GXP1105, GXP1600C, GXP1610C, GXP1610P, GXP1615, GXP1628B, GXP1760, GXP1760W, GXP1780, GXP1782, GXP2130, GXP2135, GXP2136, GXP2140, GXP2160, GXP2170, GXV3240, GXV3275, GXV3350, GXV3370, GXV3380, GXV3450, GXV3470, GXV3480, GXV3500, WP800, WP810, WP816, WP820, WP822, WP825, WP826, WP856.
+
+## Output
+
+The script will generate or update a file named `kgzcfg_export_zc_devices.csv` in the same directory as the script. This file contains the configuration settings for the specified IP phones.
+
+### Example Output
+
+```
+|###############################-----------------| 60.00%
+88                                           ad88
+88                                          d8"
+88                                          88
+88   ,d8  ,adPPYb,d8 888888888  ,adPPYba, MM88MMM ,adPPYb,d8
+88 ,a8"  a8"    `Y88      a8P" a8"     ""   88   a8"    `Y88
+8888[    8b       88   ,d8P'   8b           88   8b       88
+88`"Yba, "8a,   ,d88 ,d8"      "8a,   ,aa   88   "8a,   ,d88
+88   `Y8a `"YbbdP"Y8 888888888  `"Ybbd8"'   88    `"YbbdP"Y8
+          aa,    ,88                              aa,    ,88
+           "Y8bbdP"                                "Y8bbdP"
+```
+
+## Error Handling
+
+The script will display appropriate error messages if any input is invalid, such as:
+
+- "Invalid IP address. Please enter a valid IPv4 address."
+- "Invalid Subnet Mask. Please enter a valid Subnet Mask."
+
+## Dependencies
+
+- Python Standard Libraries: `csv`, `argparse`, `sys`, `re`, `ipaddress`, `os`, `shutil`, `math`.
+
 ## Quickstart
 
 ### Prerequisites
 
 - **Python 3.x** is required.
-- The `csv` module (included with Python standard library).
+- The `csv`, `argparse`, `sys`, `re`, `ipaddress`, `os`, `shutil`, `math` module (included with Python standard library).
 
 ### Installation
 
@@ -90,5 +137,8 @@ The script will append new configurations to the specified CSV file and display 
     MAC Address: EC74D7840392 - IP: 192.168.1.12 - Account: 302
 
 ## Troubleshooting
-Permission Denied: Ensure you have write permissions for the CSV file.
-Incorrect Inputs: Double-check that all inputs are correctly formatted.
+- Permission Denied: Ensure you have write permissions for the CSV file.
+- Incorrect Inputs: Double-check that all inputs are correctly formatted.
+
+
+
