@@ -6,10 +6,11 @@ import ipaddress
 import os
 import shutil
 import math
+import time
 
-version = "1.0.6"
+version = "1.0.7" # Version of the script
 
-# undefined start point
+# Variables for storing input parameters
 file_path = ""
 mac_addresses = ""
 model = ""
@@ -20,41 +21,36 @@ gateway_ip = ""
 dns_ip = ""
 start_account = ""
 ip_mode = ""
-        
+loading_time = 0.01 # Time delay for the loading effect
+
+# Function to check if input is numeric
 def is_numeric(input_str):
     return re.match(r"^\d{2,}$", input_str) is not None
 
+# Function to validate if the input is a valid IP address
 def is_valid_ip(ip):
-    # Regular expression pattern for valid IPv4 addresses
     ip_pattern = re.compile(r"^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\."
                             r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\."
                             r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\."
-                            r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
+                            r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$") # Regular expression for IPv4
     return bool(ip_pattern.match(ip))  # Return True if valid, False otherwise
 
+# Function to validate subnet mask input
 def is_valid_subnet_mask(subnet_mask):
     try:
-        # Parse the subnet mask
-        subnet = ipaddress.IPv4Network(f"0.0.0.0/{subnet_mask}", strict=False)
-        return not subnet.with_prefixlen.endswith('/0')
+        subnet = ipaddress.IPv4Network(f"0.0.0.0/{subnet_mask}", strict=False)  # Parse subnet mask
+        return not subnet.with_prefixlen.endswith('/0')  # Ensure the subnet is valid
     except ValueError:
         return False
 
+# Check if a given value exists in a list
 def is_in_list(input_value, my_list):
-    """
-    Checks if `input_value` is in `my_list`.
-
-    Args:
-        input_value: The value to search for.
-        my_list: The list to search in.
-
-    Returns:
-        bool: True if `input_value` is in `my_list`, otherwise False.
-    """
     return input_value in my_list
 
+# List of supported phone models
 supported_model_list = ["GHP610", "GHP610W", "GHP611", "GHP611W", "GHP620", "GHP620W", "GHP621", "GHP621W", "GHP630", "GHP630W", "GHP631", "GHP631W", "GRP2601", "GRP2601P", "GRP2601W", "GRP2602", "GRP2602G", "GRP2602P", "GRP2602W", "GRP2603", "GRP2603P", "GRP2604", "GRP2604P", "GRP2612", "GRP2612G", "GRP2612P", "GRP2612W", "GRP2613", "GRP2614", "GRP2615", "GRP2616", "GRP2624", "GRP2634", "GRP2636", "GRP2650", "GRP2670", "GSC3505", "GSC3506", "GSC3510", "GSC3516", "GSC3570", "GSC3574", "GSC3575", "GSC3610", "GSC3615", "GSC3620", "GXP1100", "GXP1105", "GXP1600C", "GXP1610C", "GXP1610P", "GXP1615", "GXP1628B", "GXP1760", "GXP1760W", "GXP1780", "GXP1782", "GXP2130", "GXP2135", "GXP2136", "GXP2140", "GXP2160", "GXP2170", "GXV3240", "GXV3275", "GXV3350", "GXV3370", "GXV3380", "GXV3450", "GXV3470", "GXV3480", "GXV3500", "WP800", "WP810", "WP816", "WP820", "WP822", "WP825", "WP826", "WP856",]
-    
+
+# Argument parser setup for command-line inputs
 parser = argparse.ArgumentParser(description="karan's grandstream zero configuration file generator")
 parser.add_argument("-v", action="store_true", help="Print version info")
 parser.add_argument("-m", help="IP Phone Model")
@@ -66,17 +62,19 @@ parser.add_argument("-a", help="Starting Account")
 parser.add_argument("-d", help="DNS IP Address")
 parser.add_argument("-i", type=int, help="IP Phones mode")
 
+# Parse the command-line arguments
 args = parser.parse_args()
 
+# Handle version argument
 if args.v:
     print("\nkgzcfg version: {}".format(version))
     sys.exit(0)
 
+# Model input validation
 if args.m:
     check = args.m.upper()
     if is_in_list(check, supported_model_list):
-        print(check)
-        model = args.m
+        model = args.m.upper()
 
 if args.u:
     if is_valid_ip(args.u):
@@ -107,57 +105,94 @@ if args.d:
         dns_ip = args.d
 
 if args.i:
-    if args.i in ("1" ,"2"):
+    if args.i in (1, 2):
         ip_mode = args.i
 
-# Get the path to the current script file
-script_directory = os.path.dirname(__file__)
+# Function to get the configuration file paths
+def get_config_file(project):
+    script_directory = os.path.dirname(__file__)  # Get the current script directory
+    folder_path = os.path.join(script_directory, project)  # Set folder path based on project name
+    
+    # Create the directory if it doesn't exist
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        print(f"Folder '{folder_path}' created successfully.")
+    else:
+        print(f"Folder '{folder_path}' already exists.")
 
-# Specify the file name (e.g., "data.json")
-file_name = "kgzcfg_export_zc_devices.csv"
+    # Set file paths for output files
+    file_name = "kgzcfg_export_zc_devices.csv"
+    mac_file = "mac.txt"
+    deployment_file = "deployment-details.csv"
 
-# Construct the full path to the file
-file_path = os.path.join(script_directory, file_name)
+    file_path = os.path.join(script_directory, project, file_name)  # Full path for config file
+    mac_path = os.path.join(script_directory, mac_file)  # Path for MAC address file
+    deployment_file_path = os.path.join(script_directory, project, deployment_file)  # Path for deployment file
+    
+    # Open files or create them if they don't exist
+    try:
+        with open(file_path, "r") as file:
+            # Process the data as needed
+            print(f"Found existing '{file_name}' in the '{project}' folder as the script.")
+        with open(deployment_file_path, "r") as file:
+            # Process the data as needed
+            print(f"Found existing '{deployment_file}' in the '{project}' folder as the script.")    
+    except FileNotFoundError:
+        # If the file doesn't exist, create it
+        with open(file_path, "w") as file:
+            # Initialize the file content (if required)
+            print(f"Created '{file_name}' in the '{project}' folder as the script.")
+        with open(deployment_file_path, "w") as file:
+            # Process the data as needed
+            print(f"Created '{deployment_file}' in the '{project}' folder as the script.")                
+    finally:
+        return (file_path, mac_path, deployment_file_path)
 
+# Function to display a progress bar
 def progress_bar(progress, total):
     percent = 100 * (progress / float(total))
     terminal_width, _ = shutil.get_terminal_size()
+    if terminal_width > 72:
+        terminal_width = 72
 
-    # Calculate the number of '#' characters based on the completion percentage
     bar_width = int((terminal_width - 10) * (percent / 100))
     bar = '#' * bar_width + '-' * (terminal_width - 10 - bar_width)
 
-    # Display the progress bar
     print(f"\r|{bar}| {percent:.2f}%", end="\r")
 
-# Generate a list of numbers, each multiplied by 5
-numbers = [x * 5 for x in range(2000, 2100)]
-results = []
+# ASCII logo used in the script
+logo = [
+    ".--------------------------------------------------------------.",
+    "| 88                                           ad88            |",
+    "| 88                                          d8\"              |",
+    "| 88                                          88               |",
+    "| 88   ,d8  ,adPPYb,d8 888888888  ,adPPYba, MM88MMM ,adPPYb,d8 |",
+    "| 88 ,a8\"  a8\"    `Y88      a8P\" a8\"     \"\"   88   a8\"    `Y88 |",
+    "| 8888[    8b       88   ,d8P'   8b           88   8b       88 |",
+    "| 88`\"Yba, \"8a,   ,d88 ,d8\"      \"8a,   ,aa   88   \"8a,   ,d88 |",
+    "| 88   `Y8a `\"YbbdP\"Y8 888888888  `\"Ybbd8\"'   88    `\"YbbdP\"Y8 |",
+    "|           aa,    ,88                              aa,    ,88 |",
+    "|            \"Y8bbdP\"                                \"Y8bbdP\"  |",
+    "`--------------------------------------------------------------'"
+]
 
-logo = (r"""
-88                                           ad88
-88                                          d8"
-88                                          88
-88   ,d8  ,adPPYb,d8 888888888  ,adPPYba, MM88MMM ,adPPYb,d8
-88 ,a8"  a8"    `Y88      a8P" a8"     ""   88   a8"    `Y88
-8888[    8b       88   ,d8P'   8b           88   8b       88
-88`"Yba, "8a,   ,d88 ,d8"      "8a,   ,aa   88   "8a,   ,d88
-88   `Y8a `"YbbdP"Y8 888888888  `"Ybbd8"'   88    `"YbbdP"Y8
-          aa,    ,88                              aa,    ,88
-           "Y8bbdP"                                "Y8bbdP"
-""")
-print()  # Print a newline after completion
-    
-try:
-    # Try to open the file for reading
-    with open(file_path, "r") as file:
-        # Process the data as needed
-        print(f"Found existing '{file_name}' in the same folder as the script.")
-except FileNotFoundError:
-    # If the file doesn't exist, create it
-    with open(file_path, "w") as file:
-        # Initialize the file content (if required)
-        print(f"Created '{file_name}' in the same folder as the script.")
+# Function to display the loading logo
+def slow_print_logo(logo, delay):
+    for line in logo:
+        print(line)
+        time.sleep(delay)  # Add delay between each line
+
+def logo_loading():
+    slow_print_logo(logo, delay=loading_time+0.01)  # Adjust delay for slower/faster printing
+
+# Function to clear the terminal screen
+def clear():
+    os.system('cls' if os.name == 'nt' else 'clear')  # Clear screen for Windows ('cls') or Unix/Linux ('clear')
+
+# Main function for running the loading effect
+def loading():
+    clear()  # Clear the terminal screen
+    logo_loading()  # Show the ASCII logo with a loading effect
 
 def generate_ip_range(start_ip, count):
     base_ip = start_ip.split('.')
@@ -238,19 +273,40 @@ def append_config_to_csv(file_path, configs):
                 for row in rows:
                     writer.writerow(row.split(','))
 
-def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip, start_account, ip_mode):
-    # Display a progress bar for the calculation of factorials
-    progress_bar(0, len(numbers))
-    for i, x in enumerate(numbers):
-        results.append(math.factorial(x))
-        progress_bar(i + 1, len(numbers))
-    print(logo)
+def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip, start_account, ip_mode, loading_time):
+    loading()
+    total_steps = 100
+    progress_bar(0, total_steps)
+    
+    # Simulate a task that takes time (e.g., reading files, processing data, etc.)
+    for i in range(total_steps):
+        time.sleep(loading_time)  # Simulating work (replace with real task)
+        progress_bar(i + 1, total_steps)
+    print()  # Print a newline after completion    
+    print()  # Print a newline after completion    
+    site = input("Enter Site Name > ")
+    path = get_config_file(site)
+    file_path = path[0]
+    mac_file = path[1]
+    deployment_file_path = path[2]
     if mac_addresses == "":
-        mac_addresses = input("Enter the MAC addresses (comma separated) >").split(',')
-        mac_addresses = [addr.upper() for addr in mac_addresses]
+        try:
+            with open(mac_file, "r") as file:
+                # Read all lines, strip whitespace, and ignore empty lines and line with #
+                mac_addresses = [line.strip() for line in file if not line.strip().startswith("#") and line.strip()]                
+                # Replace all colons with an empty string
+                mac_addresses = [line.replace(":", "") for line in mac_addresses]
+                mac_addresses = [addr.upper() for addr in mac_addresses]
+            print("MAC addresses successfully read from mac.txt")
+        except:
+            print(f"mac.txt is not found in the same folder as the script.")    
+            mac_addresses = input("Enter the MAC addresses (comma separated) > ").split(',')
+                # Replace all colons with an empty string
+            mac_addresses = [line.replace(":", "") for line in mac_addresses]
+            mac_addresses = [addr.upper() for addr in mac_addresses]
     if ucm_ip == "":
         while True:
-            ucm_ip = input("Enter the UCM IP address >")
+            ucm_ip = input("Enter the UCM IP address > ")
             if is_valid_ip(ucm_ip):
                 if is_valid_subnet_mask(ucm_ip):
                     print("Entered value is Subnet Mask not IP Addresss")
@@ -261,27 +317,26 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
                 print("Invalid IP address. Please enter a valid IPv4 address.")
     if model == "":
         while True:
-            model = input("Enter the Model default (GRP2601P) >") or "GRP2601P"
+            model = input("Enter the Model default (GRP2601P) > ") or "GRP2601P"
             model = model.upper()
-            print(model)
             if is_in_list(model, supported_model_list):
                 break
     if start_account == "":
         while True:
-            start_account = input("Enter the starting Account number >")
+            start_account = input("Enter the starting Account number > ")
             if is_numeric(start_account):
                 start_account = int(start_account)
                 break
     if ip_mode == "":
         while True: 
-            ip_mode = input("Enter IP Phone network mode (1. DHCP 2. Static) >")
+            ip_mode = input("Enter IP Phone network mode (1. DHCP 2. Static) > ")
             if ip_mode in ("1" ,"2"):
                 break
     ip_mode = int(ip_mode)
     if ip_mode == 2:
         if start_ip == "":
             while True:
-                start_ip = input("Enter the IP Phone starting IP address >")
+                start_ip = input("Enter the IP Phone starting IP address > ")
                 if is_valid_ip(start_ip):
                     if is_valid_subnet_mask(start_ip):
                         print("Entered value is Subnet Mask not IP Addresss")
@@ -292,7 +347,7 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
                     print("Invalid IP address. Please enter a valid IPv4 address.")
         if subnet_mask == "":
             while True:
-                print("Enter the Subnet Mask default (255.255.255.0) >", end="")
+                print("Enter the Subnet Mask default (255.255.255.0) > ", end="")
                 subnet_mask = input() or "255.255.255.0"
                 try:
                     if int(subnet_mask) <= 32:
@@ -306,7 +361,7 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
         default_gateway = start_ip.rsplit(".", 1)[0] + ".1"
         if gateway_ip == "":
             while True:
-                print(f"Enter the Gateway IP address default ({default_gateway}) >", end="")
+                print(f"Enter the Gateway IP address default ({default_gateway}) > ", end="")
                 gateway_ip = input() or default_gateway
                 if is_valid_ip(gateway_ip):
                     if is_valid_subnet_mask(gateway_ip):
@@ -318,7 +373,7 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
                     print("Invalid IP address. Please enter a valid IPv4 address.")            
         if dns_ip == "":
             while True:                        
-                dns_ip = input("Enter the DNS IP address default (8.8.8.8) >") or "8.8.8.8"
+                dns_ip = input("Enter the DNS IP address default (8.8.8.8) > ") or "8.8.8.8"
                 if is_valid_ip(dns_ip):
                     if is_valid_subnet_mask(dns_ip):
                         print("Entered value is Subnet Mask not IP Addresss")
@@ -346,15 +401,19 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
     if ip_mode == 1:
         print("\nAssigned MAC Address to Accounts:")
         for i, mac in enumerate(mac_addresses):
-            print(f"MAC Address: {mac.strip()} - Account: {accounts[i]}")    
+            print(f"MAC Address: {mac.strip()} - Account: {accounts[i]}")
+            with open(deployment_file_path, mode='a') as file:
+                file.write(f"MAC Address,{mac.strip()},Account,{accounts[i]}\n")
     if ip_mode == 2:
         print("\nAssigned IPs and Accounts:")
         for i, mac in enumerate(mac_addresses):
             print(f"MAC Address: {mac.strip()} - IP: {ips[i]} - Account: {accounts[i]}")
+            with open(deployment_file_path, mode='a') as file:
+                file.write(f"MAC Address,{mac.strip()},IP,{ips[i]},Account,{accounts[i]}\n")            
 
 try: 
     if __name__ == "__main__":
-        main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip, start_account, ip_mode)
+        main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip, start_account, ip_mode, loading_time)
 except:
     print("\nkgzcfg Stop Executing.")
 
