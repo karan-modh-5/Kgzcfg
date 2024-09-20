@@ -8,11 +8,11 @@ import shutil
 import math
 import time
 
-version = "1.0.7" # Version of the script
+version = "1.0.7.1" # Version of the script
 
 # Variables for storing input parameters
 file_path = ""
-mac_addresses = ""
+mac_addresses = []
 model = ""
 ucm_ip = ""
 start_ip = ""
@@ -42,6 +42,44 @@ def is_valid_subnet_mask(subnet_mask):
         return not subnet.with_prefixlen.endswith('/0')  # Ensure the subnet is valid
     except ValueError:
         return False
+
+# Regular expression to match valid MAC addresses (with or without colons or dashes)
+mac_pattern = re.compile(r'([0-9A-Fa-f]{2}[:\-]?[0-9A-Fa-f]{2}[:\-]?[0-9A-Fa-f]{2}[:\-]?[0-9A-Fa-f]{2}[:\-]?[0-9A-Fa-f]{2}[:\-]?[0-9A-Fa-f]{2})')
+
+# Function to check if a MAC address is valid
+def is_valid_mac(mac):
+    # Remove any separators (colons or dashes)
+    cleaned_mac = mac.replace(":", "").replace("-", "").upper()
+    # Check if the MAC address has exactly 12 hexadecimal characters and isn't a repeating sequence
+    if len(cleaned_mac) == 12 and re.match(r'^[0-9A-F]{12}$', cleaned_mac):
+        if len(set(cleaned_mac)) > 1:  # Rejects all same-character addresses like '111111111111'
+            return True
+    return False
+
+# Function to process the MAC addresses found in the file or input
+def mac_processing(found_macs):
+    valid_macs = []
+    invalid_macs = []
+
+    for mac in found_macs:
+        formatted_mac = mac.replace(":", "").replace("-", "").upper()
+        if is_valid_mac(formatted_mac):
+            valid_macs.append(formatted_mac)
+        else:
+            invalid_macs.append(mac)
+
+    return valid_macs, invalid_macs
+
+# Function to prompt the user for MAC addresses if no file is found or valid MACs are present
+def get_user_mac_input():
+    while True:
+        user_input = input("Enter the MAC addresses (comma-separated) > ").split(',')
+        valid_macs, invalid_macs = mac_processing(user_input)
+        
+        if valid_macs:
+            return valid_macs, invalid_macs
+        else:
+            print("No valid MAC addresses found. Please try again.")
 
 # Check if a given value exists in a list
 def is_in_list(input_value, my_list):
@@ -110,8 +148,9 @@ if args.i:
 
 # Function to get the configuration file paths
 def get_config_file(project):
-    script_directory = os.path.dirname(__file__)  # Get the current script directory
-    folder_path = os.path.join(script_directory, project)  # Set folder path based on project name
+    kgzcfg = "kgzcfg"
+    script_directory = os.getcwd()  # Get the current script directory
+    folder_path = os.path.join(script_directory, kgzcfg, project)  # Set folder path based on project name
     
     # Create the directory if it doesn't exist
     if not os.path.exists(folder_path):
@@ -125,9 +164,9 @@ def get_config_file(project):
     mac_file = "mac.txt"
     deployment_file = "deployment-details.csv"
 
-    file_path = os.path.join(script_directory, project, file_name)  # Full path for config file
-    mac_path = os.path.join(script_directory, mac_file)  # Path for MAC address file
-    deployment_file_path = os.path.join(script_directory, project, deployment_file)  # Path for deployment file
+    file_path = os.path.join(folder_path, file_name)  # Full path for config file
+    mac_path = os.path.join(script_directory, kgzcfg, mac_file)  # Path for MAC address file
+    deployment_file_path = os.path.join(folder_path, deployment_file)  # Path for deployment file
     
     # Open files or create them if they don't exist
     try:
@@ -191,7 +230,7 @@ def clear():
 
 # Main function for running the loading effect
 def loading():
-    clear()  # Clear the terminal screen
+    #clear()  # Clear the terminal screen
     logo_loading()  # Show the ASCII logo with a loading effect
 
 def generate_ip_range(start_ip, count):
@@ -286,24 +325,58 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
     print()  # Print a newline after completion    
     site = input("Enter Site Name > ")
     path = get_config_file(site)
-    file_path = path[0]
-    mac_file = path[1]
-    deployment_file_path = path[2]
-    if mac_addresses == "":
-        try:
-            with open(mac_file, "r") as file:
-                # Read all lines, strip whitespace, and ignore empty lines and line with #
-                mac_addresses = [line.strip() for line in file if not line.strip().startswith("#") and line.strip()]                
-                # Replace all colons with an empty string
-                mac_addresses = [line.replace(":", "") for line in mac_addresses]
-                mac_addresses = [addr.upper() for addr in mac_addresses]
+    file_path, mac_file, deployment_file_path = path
+    try:
+        with open(mac_file, 'r') as file:
+            from_file_mac_addresses = []
+            for line in file:
+                found_macs = mac_pattern.findall(line.strip())
+                from_file_mac_addresses.extend(found_macs)
             print("MAC addresses successfully read from mac.txt")
-        except:
-            print(f"mac.txt is not found in the same folder as the script.")    
-            mac_addresses = input("Enter the MAC addresses (comma separated) > ").split(',')
-                # Replace all colons with an empty string
-            mac_addresses = [line.replace(":", "") for line in mac_addresses]
-            mac_addresses = [addr.upper() for addr in mac_addresses]
+
+            # Process the found MAC addresses
+            valid_macs, invalid_macs = mac_processing(from_file_mac_addresses)
+
+            if valid_macs:
+                print("\nValid MAC addresses:")
+                for mac in valid_macs:
+                    print(mac)
+                    mac_addresses.append(mac)
+
+            if invalid_macs:
+                print("\nInvalid MAC addresses:")
+                for mac in invalid_macs:
+                    print(mac)
+
+            # If no valid MAC addresses found, ask the user for input
+            if not valid_macs:
+                print("No valid MAC addresses found in the file.")
+                valid_macs, invalid_macs = get_user_mac_input()
+
+                print("\nValid MAC addresses from input:")
+                for mac in valid_macs:
+                    print(mac)
+                    mac_addresses.append(mac)
+
+                if invalid_macs:
+                    print("\nInvalid MAC addresses from input:")
+                    for mac in invalid_macs:
+                        print(mac)
+
+    except FileNotFoundError:
+        print(f"'{mac_file}' not found in the same folder as the script.")
+        valid_macs, invalid_macs = get_user_mac_input()
+
+        print("\nValid MAC addresses from input:")
+        for mac in valid_macs:
+            print(mac)
+            mac_addresses.append(mac)
+
+        if invalid_macs:
+            print("\nInvalid MAC addresses from input:")
+            for mac in invalid_macs:
+                print(mac)
+
     if ucm_ip == "":
         while True:
             ucm_ip = input("Enter the UCM IP address > ")
@@ -411,7 +484,7 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
             with open(deployment_file_path, mode='a') as file:
                 file.write(f"MAC Address,{mac.strip()},IP,{ips[i]},Account,{accounts[i]}\n")            
 
-try: 
+try:
     if __name__ == "__main__":
         main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip, start_account, ip_mode, loading_time)
 except:
