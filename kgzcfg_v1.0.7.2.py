@@ -349,7 +349,7 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
                 print("\nInvalid MAC addresses:")
                 for mac in invalid_macs:
                     print(mac)
-
+            print()
             # If no valid MAC addresses found, ask the user for input
             if not valid_macs:
                 print("No valid MAC addresses found in the file.")
@@ -396,16 +396,25 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
             model = model.upper()
             if is_in_list(model, supported_model_list):
                 break
+    accounts = []
     try:
         with open(account_file_path, 'r') as file:
-            print("\nAccounts successfully read from account.txt")
+            print("Accounts successfully read from account.txt")
+            for line in file:
+                if is_numeric(line.strip()):
+                    accounts.append(line.strip())
     except:
+        print(f"'{account_file_path}' not found in the same folder as the script.")
         if start_account == "":
             while True:
                 start_account = input("Enter the starting Account number > ")
                 if is_numeric(start_account):
                     start_account = int(start_account)
                     break
+        count = len(mac_addresses)
+        accounts = generate_account_numbers(start_account, count)
+    print(accounts)
+    print()
     if ip_mode == "":
         while True: 
             ip_mode = input("Enter IP Phone network mode (1. DHCP 2. Static) > ")
@@ -462,21 +471,10 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
                 else:
                     print("Invalid IP address. Please enter a valid IPv4 address.")            
             
-        
-    count = len(mac_addresses)
+
     if ip_mode == 2:
         ips = generate_ip_range(start_ip, count)
-    
-    accounts = []
-    try:
-        with open(account_file_path, 'r') as file:
-            for line in file:
-                if is_numeric(line.strip()):
-                    accounts.append(line.strip())
-    except:
-        accounts = generate_account_numbers(start_account, count)
-    print(accounts)
-    
+
     if not len(mac_addresses) == len(accounts):
         print(f"Found number of MAC address and Account Number does not match. Numebr of MAC Address Found: {len(mac_addresses)} Number of Accounts Found: {len(accounts)}")
         sys.exit(0)
