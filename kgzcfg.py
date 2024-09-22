@@ -8,10 +8,10 @@ import shutil
 import math
 import time
 
-version = "1.0.7.1" # Version of the script
+version = "1.0.7.2" # Version of the script
 
 # Variables for storing input parameters
-file_path = ""
+export_zero_config_csv_file_path = ""
 mac_addresses = []
 model = ""
 ucm_ip = ""
@@ -160,32 +160,34 @@ def get_config_file(project):
         print(f"Folder '{folder_path}' already exists.")
 
     # Set file paths for output files
-    file_name = "kgzcfg_export_zc_devices.csv"
-    mac_file = "mac.txt"
-    deployment_file = "deployment-details.csv"
+    export_zero_config_csv_file_name = "kgzcfg_export_zc_devices.csv"
+    mac_file_name = "mac.txt"
+    deployment_file_name = "deployment-details.csv"
+    account_file_name = "account.txt"
 
-    file_path = os.path.join(folder_path, file_name)  # Full path for config file
-    mac_path = os.path.join(script_directory, kgzcfg, mac_file)  # Path for MAC address file
-    deployment_file_path = os.path.join(folder_path, deployment_file)  # Path for deployment file
+    export_zero_config_csv_file_path = os.path.join(folder_path, export_zero_config_csv_file_name)  # Full path for config file
+    mac_file_path = os.path.join(script_directory, kgzcfg, mac_file_name)  # Path for MAC address file
+    deployment_file_path = os.path.join(folder_path, deployment_file_name)  # Path for deployment file
+    account_file_path = os.path.join(script_directory, kgzcfg, account_file_name)  # Path for MAC address file
     
     # Open files or create them if they don't exist
     try:
-        with open(file_path, "r") as file:
+        with open(export_zero_config_csv_file_path, "r") as file:
             # Process the data as needed
-            print(f"Found existing '{file_name}' in the '{project}' folder as the script.")
+            print(f"Found existing '{export_zero_config_csv_file_name}' in the '{project}' folder as the script.")
         with open(deployment_file_path, "r") as file:
             # Process the data as needed
-            print(f"Found existing '{deployment_file}' in the '{project}' folder as the script.")    
+            print(f"Found existing '{deployment_file_name}' in the '{project}' folder as the script.")    
     except FileNotFoundError:
         # If the file doesn't exist, create it
-        with open(file_path, "w") as file:
+        with open(export_zero_config_csv_file_path, "w") as file:
             # Initialize the file content (if required)
-            print(f"Created '{file_name}' in the '{project}' folder as the script.")
+            print(f"Created '{export_zero_config_csv_file_name}' in the '{project}' folder as the script.")
         with open(deployment_file_path, "w") as file:
             # Process the data as needed
-            print(f"Created '{deployment_file}' in the '{project}' folder as the script.")                
+            print(f"Created '{deployment_file_name}' in the '{project}' folder as the script.")                
     finally:
-        return (file_path, mac_path, deployment_file_path)
+        return (export_zero_config_csv_file_path, mac_file_path, deployment_file_path, account_file_path)
 
 # Function to display a progress bar
 def progress_bar(progress, total):
@@ -304,8 +306,8 @@ def create_static_config(mac, ip, account, model, dns_ip, subnet_mask, gateway_i
         ]
     }
 
-def append_config_to_csv(file_path, configs):
-    with open(file_path, mode='a', newline='') as file:
+def append_config_to_csv(export_zero_config_csv_file_path, configs):
+    with open(export_zero_config_csv_file_path, mode='a', newline='') as file:
         writer = csv.writer(file)
         for config in configs:
             for section, rows in config.items():
@@ -325,9 +327,9 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
     print()  # Print a newline after completion    
     site = input("Enter Site Name > ")
     path = get_config_file(site)
-    file_path, mac_file, deployment_file_path = path
+    export_zero_config_csv_file_path, mac_file_path, deployment_file_path, account_file_path = path
     try:
-        with open(mac_file, 'r') as file:
+        with open(mac_file_path, 'r') as file:
             from_file_mac_addresses = []
             for line in file:
                 found_macs = mac_pattern.findall(line.strip())
@@ -364,7 +366,7 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
                         print(mac)
 
     except FileNotFoundError:
-        print(f"'{mac_file}' not found in the same folder as the script.")
+        print(f"'{mac_file_path}' not found in the same folder as the script.")
         valid_macs, invalid_macs = get_user_mac_input()
 
         print("\nValid MAC addresses from input:")
@@ -394,12 +396,16 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
             model = model.upper()
             if is_in_list(model, supported_model_list):
                 break
-    if start_account == "":
-        while True:
-            start_account = input("Enter the starting Account number > ")
-            if is_numeric(start_account):
-                start_account = int(start_account)
-                break
+    try:
+        with open(account_file_path, 'r') as file:
+            print("\nAccounts successfully read from account.txt")
+    except:
+        if start_account == "":
+            while True:
+                start_account = input("Enter the starting Account number > ")
+                if is_numeric(start_account):
+                    start_account = int(start_account)
+                    break
     if ip_mode == "":
         while True: 
             ip_mode = input("Enter IP Phone network mode (1. DHCP 2. Static) > ")
@@ -460,15 +466,28 @@ def main(mac_addresses, model, ucm_ip, start_ip, subnet_mask, gateway_ip, dns_ip
     count = len(mac_addresses)
     if ip_mode == 2:
         ips = generate_ip_range(start_ip, count)
-    accounts = generate_account_numbers(start_account, count)
     
+    accounts = []
+    try:
+        with open(account_file_path, 'r') as file:
+            for line in file:
+                if is_numeric(line.strip()):
+                    accounts.append(line.strip())
+    except:
+        accounts = generate_account_numbers(start_account, count)
+    print(accounts)
+    
+    if not len(mac_addresses) == len(accounts):
+        print(f"Found number of MAC address and Account Number does not match. Numebr of MAC Address Found: {len(mac_addresses)} Number of Accounts Found: {len(accounts)}")
+        sys.exit(0)
+
     # Create config file with static ip address
     if ip_mode == 2:
         configs = [create_static_config(mac.strip(), ips[i], accounts[i], model, dns_ip, subnet_mask, gateway_ip, ucm_ip) for i, mac in enumerate(mac_addresses)]
     if ip_mode == 1:
         configs = [create_dhcp_config(mac.strip(), accounts[i], model, ucm_ip) for i, mac in enumerate(mac_addresses)]
     
-    append_config_to_csv(file_path, configs)
+    append_config_to_csv(export_zero_config_csv_file_path, configs)
     
     # Display assigned IP and account numbers
     if ip_mode == 1:
