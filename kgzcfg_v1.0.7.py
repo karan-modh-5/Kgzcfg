@@ -89,7 +89,7 @@ if args.n:
         if int(args.n) <= 32:
             print("Invalid IP address. Please enter a valid Subnet Mask.")
     except:
-        if is_valid_subnet_mask(args.u):
+        if is_valid_subnet_mask(args.n):
             subnet_mask = args.n
 
 if args.g:
